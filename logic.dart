@@ -63,46 +63,41 @@ class Game {
   Future<void> loadPreviousResult(String name) async {
     try {
       final previousResults = await GameIO.loadPreviousResults(name);
-      print('저장된 결과: $previousResults'); // 디버깅 메시지
+      print('불러온 결과: $previousResults'); // 디버깅용
       if (previousResults.isNotEmpty) {
-        bool foundExactMatch = false;
-        for (String result in previousResults.reversed) {
-          final results = result.split(',');
-          if (results.length == 5 &&
-              results[0].trim().toLowerCase() == name.trim().toLowerCase()) {
-            foundExactMatch = true;
-            int previousHealth = int.parse(results[1]);
-            String previousResult = results[2];
-            int previousLevel = int.parse(results[3]);
-            int previousAttack = int.parse(results[4]);
-            print('일치하는 결과 찾음: $results'); // 디버깅 메시지
+        final results = previousResults.last.split(',');
+        if (results.length == 6) {
+          // 방어력 정보 추가로 인해 6개 항목
+          int previousHealth = int.parse(results[1]);
+          String previousResult = results[2];
+          int previousLevel = int.parse(results[3]);
+          int previousAttack = int.parse(results[4]);
+          int previousDefense = int.parse(results[5]);
+          print(
+              '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel, 공격력 $previousAttack, 방어력 $previousDefense, $previousResult');
+          if (previousResult.contains('중간승리') ||
+              previousResult.contains('최종승리')) {
+            character!.setHealth(previousHealth);
+            character!.level = previousLevel;
+            character!.attack = previousAttack;
+            character!.defense = previousDefense;
+            level = previousLevel;
             print(
-                '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
-            if (previousResult.contains('중간승리') ||
-                previousResult.contains('최종승리')) {
-              character!.setHealth(previousHealth);
-              character!.level = previousLevel;
-              character!.attack = previousAttack;
-              level = previousLevel;
-              print(
-                  '이전 게임의 체력과 레벨을 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}, 공격력: ${character!.attack}');
-              if (previousResult.contains('최종승리')) {
-                print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
-                level++;
-                character!.level = level;
-                resetMonsters();
-              }
-            } else {
-              print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
+                '이전 게임의 상태를 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}, 공격력: ${character!.attack}, 방어력: ${character!.defense}');
+            if (previousResult.contains('최종승리')) {
+              print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+              level++;
+              character!.level = level;
+              resetMonsters();
             }
-            break;
+          } else {
+            print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
           }
-        }
-        if (!foundExactMatch) {
-          print('정확히 일치하는 이름의 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
+        } else {
+          print('저장된 데이터 형식이 올바르지 않습니다. 새로운 게임을 시작합니다.');
         }
       } else {
-        print('이전 게임 기록이 없습니다. 새로운 게임을 시작합니다.');
+        print('이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
       }
     } catch (e) {
       print('이전 결과를 불러오는 데 실패했습니다: $e');

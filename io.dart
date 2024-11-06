@@ -74,7 +74,8 @@ class GameIO {
       final contents = await file.readAsLines();
       return contents.where((line) {
         final parts = line.split(',');
-        return parts.isNotEmpty && parts[0].trim() == name.trim();
+        return parts.isNotEmpty &&
+            parts[0].trim().toLowerCase() == name.trim().toLowerCase();
       }).toList();
     }
     return [];
@@ -109,7 +110,7 @@ class GameIO {
   static Future<void> saveResult(Character character, String result) async {
     if (await getYesNoAnswer('결과를 저장하시겠습니까? (y/n): ')) {
       String content =
-          '${character.name},${character.health},$result,${character.level},${character.attack}';
+          '${character.name},${character.health},$result,${character.level},${character.attack},${character.defense}';
       try {
         await File('result.txt')
             .writeAsString(content + '\n', mode: FileMode.append);
@@ -119,6 +120,9 @@ class GameIO {
       }
     } else if (await getYesNoAnswer('정말 결과를 저장하지 않으시겠습니까? (y/n): ')) {
       print('결과를 저장하지 않고 진행합니다.');
+    } else {
+      // 사용자가 두 번째 질문에도 'n'을 선택한 경우, 다시 저장 여부를 물어봅니다.
+      await saveResult(character, result);
     }
   }
 
