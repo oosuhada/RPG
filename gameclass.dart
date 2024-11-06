@@ -8,6 +8,7 @@ class Game {
   List<Monster> monsters = [];
   int defeatedMonsters = 0;
   int totalMonsters = 0;
+  bool gameOver = false;
 
   void loadCharacterStats() {
     try {
@@ -24,12 +25,50 @@ class Game {
       String name = getCharacterName();
       character = Character(name, health, attack, defense);
 
+      // 이전 게임 결과 불러오기
+      loadPreviousResult(name);
+
       // 도전: 캐릭터 체력 보너스 기능 호출
       applyHealthBonus();
     } catch (e) {
       print('캐릭터 데이터를 불러오는 데 실패했습니다: $e');
       exit(1);
     }
+  }
+
+  // 게임 결과 저장 불러오는 메서드 수정
+  void loadPreviousResult(String name) {
+    try {
+      final file = File('result.txt');
+      if (file.existsSync()) {
+        final contents = file.readAsStringSync();
+        final results = contents.split(',');
+        if (results.length == 3 && results[0] == name) {
+          int previousHealth = int.parse(results[1]);
+          String previousResult = results[2];
+          print('이전 게임 결과: 체력 $previousHealth, 결과 $previousResult');
+
+          if (previousResult == '중간승리' || previousResult == '최종승리') {
+            character!.health = previousHealth;
+            print('이전 게임의 체력을 이어받았습니다.');
+            if (previousResult == '최종승리') {
+              print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+              resetMonsters();
+            }
+          } else {
+            print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
+          }
+        }
+      }
+    } catch (e) {
+      print('이전 결과를 불러오는 데 실패했습니다: $e');
+    }
+  }
+
+  void resetMonsters() {
+    monsters.clear();
+    defeatedMonsters = 0;
+    loadMonsterStats();
   }
 
   // 도전: 캐릭터 체력 보너스 기능
@@ -184,13 +223,14 @@ class Game {
   void endGame(bool isVictory) {
     String result;
     if (isVictory) {
-      result = '승리';
-      print('\n게임이 종료되었습니다. 결과: $result');
-      print('물리친 몬스터 수: $defeatedMonsters');
+      result = defeatedMonsters == totalMonsters ? '최종승리' : '중간승리';
     } else {
       result = '패배';
-      print('\n게임이 종료되었습니다. 결과: $result');
-      print('물리친 몬스터 수: $defeatedMonsters');
+    }
+
+    print('\n게임이 종료되었습니다. 결과: $result');
+    print('물리친 몬스터 수: $defeatedMonsters');
+    if (!isVictory) {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
     }
 
@@ -216,11 +256,8 @@ class Game {
       stdout.write('결과를 저장하시겠습니까? (y/n): ');
       String? answer = stdin.readLineSync()?.toLowerCase();
       if (answer == 'y') {
-        // 게임 결과 결정
-        String result = defeatedMonsters == totalMonsters ? '승리' : '패배';
-
         // 결과 문자열 생성
-        String content = '${character?.name},${character?.health},$result';
+        String content = '${character!.name},${character!.health},$result';
 
         // result.txt 파일에 결과 저장
         try {
