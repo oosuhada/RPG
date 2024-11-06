@@ -14,12 +14,13 @@ class Game {
 
   Future<void> loadMonsterStats() async {
     try {
+      monsters.clear(); // 기존 몬스터 목록을 초기화
       final monsterLines = await GameIO.readMonsterFile();
       for (var line in monsterLines) {
         final stats = line.split(',');
         if (stats.length != 3) continue;
         String name = stats[0];
-        int health = int.parse(stats[1]);
+        int health = int.parse(stats[1]) + (level - 1) * 10; // 레벨에 따라 체력 증가
         int maxAttack = int.parse(stats[2]) + level * 5;
         monsters.add(Monster(name, health, maxAttack, level));
       }
@@ -60,7 +61,7 @@ class Game {
           String previousResult = results[2];
           int previousLevel = int.parse(results[3]);
           print(
-              '이전 게임 결과: 체력 $previousHealth, 결과 $previousResult, 레벨 $previousLevel');
+              '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
 
           if (previousResult.contains('중간승리') ||
               previousResult.contains('최종승리')) {
@@ -217,9 +218,11 @@ class Game {
   Future<void> levelUp() async {
     level++;
     character!.level = level;
-    print('축하합니다! 모든 몬스터를 물리쳤습니다.');
+    print('모든 몬스터를 물리쳤습니다.');
+    print('\n축하합니다! 레벨 ${level - 1}을 클리어하셨습니다.');
     print('레벨이 올랐습니다! 현재 레벨: $level');
     await levelUpBonus();
+    print('\n주의: 새로운 레벨에서는 몬스터가 더 강력해집니다!');
   }
 
   Future<void> endGame(bool isVictory) async {
