@@ -17,16 +17,27 @@ class GameIO {
     }
   }
 
+  static bool checkForReset(String input) {
+    return input.toLowerCase() == 'reset';
+  }
+
   static Future<void> showTutorial() async {
-    print('\n=== 게임 튜토리얼 ===');
-    print('1. 당신은 몬스터와 싸우는 용사입니다.');
-    print('2. 각 턴마다 공격, 방어, 아이템 사용 중 하나를 선택할 수 있습니다.');
-    print('3. 모든 몬스터를 물리치면 레벨업합니다.');
-    print('4. 체력이 0이 되면 게임 오버입니다.');
-    print('5. 게임 결과는 저장할 수 있으며, 다음 게임에 이어서 플레이할 수 있습니다.');
-    print('=== 튜토리얼 종료 ===\n');
-    stdout.write('게임을 시작하려면 아무 키나 누르세요...');
-    stdin.readLineSync();
+    print('''
+튜토리얼:
+1. 게임 시작 시 캐릭터의 이름을 입력합니다.
+2. 몬스터와 전투를 시작합니다.
+3. 전투 중 다음 행동을 선택할 수 있습니다:
+   (1: 공격 2: 방어 3: 아이템 사용)
+4. 몬스터를 물리치면 다음 몬스터와 싸울지 선택할 수 있습니다.
+5. 모든 몬스터를 물리치면 레벨업합니다.
+6. 게임 중 언제든지 'reset'을 입력하면 게임을 종료할 수 있습니다.
+7. 게임 종료 시 결과가 저장할 수 있으며 다음 게임에서 이어서 플레이할 수 있습니다.
+
+행운을 빕니다!
+  ''');
+
+    print('튜토리얼을 종료하려면 아무 키나 누르세요...');
+    await stdin.readLineSync();
   }
 
   static Future<bool> isNewPlayer(String name) async {
