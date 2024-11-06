@@ -1,4 +1,4 @@
-import 'gameclass.dart';
+import 'logic.dart';
 
 void main() {
   Game game = Game();
