@@ -49,12 +49,15 @@ class Game {
 
     bool isNewPlayer = await GameIO.isNewPlayer(name);
     if (isNewPlayer) {
-      print('처음 오셨군요!');
-      if (await GameIO.askForTutorial(true)) {
+      print('튜토리얼을 확인하시겠습니까? (y/n)');
+      if (await GameIO.getPlayerChoice(validChoices: ['y', 'n']) == 'y') {
         await GameIO.showTutorial();
       }
-    } else if (await GameIO.askForTutorial(false)) {
-      await GameIO.showTutorial();
+    } else {
+      print('튜토리얼을 다시 확인하시겠습니까? (y/n)');
+      if (await GameIO.getPlayerChoice(validChoices: ['y', 'n']) == 'y') {
+        await GameIO.showTutorial();
+      }
     }
 
     await loadPreviousResult(name);
@@ -74,7 +77,7 @@ class Game {
             int previousHealth = int.parse(results[1]);
             String previousResult = results[2];
             int previousLevel = int.parse(results[3]);
-            int previousAttack = int.parse(results[4]); // 공격력 정보 추가
+            int previousAttack = int.parse(results[4]);
             print(
                 '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
 
@@ -82,7 +85,7 @@ class Game {
                 previousResult.contains('최종승리')) {
               character!.setHealth(previousHealth);
               character!.level = previousLevel;
-              character!.attack = previousAttack; // 공격력 설정
+              character!.attack = previousAttack;
               level = previousLevel;
               print(
                   '이전 게임의 체력과 레벨을 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}, 공격력: ${character!.attack}');
@@ -95,14 +98,14 @@ class Game {
             } else {
               print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
             }
-            break; // 정확한 일치를 찾았으므로 루프 종료
+            break;
           }
         }
         if (!foundExactMatch) {
-          print('정확히 일치하는 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
+          print('반갑습니다. 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
         }
       } else {
-        print('이전 게임 기록이 없습니다. 새로운 게임을 시작합니다.');
+        print('반갑습니다. 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
       }
     } catch (e) {
       print('이전 결과를 불러오는 데 실패했습니다: $e');
