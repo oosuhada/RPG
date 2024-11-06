@@ -35,11 +35,10 @@ class Game {
     character = Character(name, 100, 20, 1);
     print('\n${name}님 반갑습니다.');
 
-    bool isNewPlayer = await GameIO.isNewPlayer();
-    if (isNewPlayer) {
-      if (await GameIO.askForTutorial()) {
-        await GameIO.showTutorial();
-      }
+    bool isNewPlayer = await GameIO.isNewPlayer(name);
+
+    if (isNewPlayer || await GameIO.askForTutorial()) {
+      await GameIO.showTutorial();
     }
 
     await loadPreviousResult(name);

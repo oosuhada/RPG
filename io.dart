@@ -29,8 +29,13 @@ class GameIO {
     stdin.readLineSync();
   }
 
-  static Future<bool> isNewPlayer() async {
-    return !(await File('result.txt').exists());
+  static Future<bool> isNewPlayer(String name) async {
+    final file = File('result.txt');
+    if (await file.exists()) {
+      final contents = await file.readAsLines();
+      return !contents.any((line) => line.startsWith(name));
+    }
+    return true;
   }
 
   static Future<bool> askForTutorial() async {
