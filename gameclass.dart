@@ -11,6 +11,18 @@ class Game {
   bool gameOver = false;
   int level = 1; // 추가도전: level 개념 추가
 
+  Future<void> showTutorial() async {
+    print('\n=== 게임 튜토리얼 ===');
+    print('1. 당신은 몬스터와 싸우는 용사입니다.');
+    print('2. 각 턴마다 공격, 방어, 아이템 사용 중 하나를 선택할 수 있습니다.');
+    print('3. 모든 몬스터를 물리치면 레벨업합니다.');
+    print('4. 체력이 0이 되면 게임 오버입니다.');
+    print('5. 게임 결과는 저장할 수 있으며, 다음 게임에 이어서 플레이할 수 있습니다.');
+    print('=== 튜토리얼 종료 ===\n');
+    stdout.write('게임을 시작하려면 아무 키나 누르세요...');
+    stdin.readLineSync();
+  }
+
   Future<void> loadMonsterStats() async {
     try {
       final file = File('monsters.txt');
@@ -34,6 +46,16 @@ class Game {
   Future<void> loadCharacterStats() async {
     String name = getCharacterName();
     character = Character(name, 100, 20, 1);
+    print('\n${name}님 반갑습니다.');
+
+    bool isNewPlayer = !(await File('result.txt').exists());
+    if (isNewPlayer) {
+      stdout.write('게임 튜토리얼을 확인하시겠습니까? (y/n): ');
+      String? answer = stdin.readLineSync()?.toLowerCase();
+      if (answer == 'y') {
+        await showTutorial();
+      }
+    }
     await loadPreviousResult(name);
   }
 
@@ -231,6 +253,18 @@ class Game {
     }
 
     await saveResult(result);
+
+    if (isVictory && defeatedMonsters == totalMonsters) {
+      stdout.write('다음 레벨을 이어서 진행하시겠습니까? (y/n): ');
+      String? answer = stdin.readLineSync()?.toLowerCase();
+      if (answer == 'y') {
+        level++;
+        character!.levelUpBonus();
+        print('레벨이 올랐습니다! 현재 레벨: $level');
+        resetMonsters();
+        await startGame();
+      }
+    }
   }
 
   Future<void> saveResult(String result) async {
@@ -249,7 +283,12 @@ class Game {
         }
         break;
       } else if (answer == 'n') {
-        // ... (나머지 코드는 동일)
+        stdout.write('정말 결과를 저장하지 않으시겠습니까? (y/n): ');
+        String? confirmAnswer = stdin.readLineSync()?.toLowerCase();
+        if (confirmAnswer == 'y') {
+          print('결과를 저장하지 않고 진행합니다.');
+          break;
+        }
       } else {
         print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
       }
