@@ -38,10 +38,14 @@ class GameIO {
     return true;
   }
 
-  static Future<bool> askForTutorial() async {
-    stdout.write('게임 튜토리얼을 확인하시겠습니까? (y/n): ');
-    String? answer = stdin.readLineSync()?.toLowerCase();
-    return answer == 'y';
+  static Future<bool> askForTutorial(bool isNewPlayer) async {
+    if (isNewPlayer) {
+      print('튜토리얼을 확인하시겠습니까? (y/n)');
+    } else {
+      print('튜토리얼을 다시 확인하시겠습니까? (y/n)');
+    }
+    String? response = stdin.readLineSync()?.toLowerCase();
+    return response == 'y';
   }
 
   static Future<List<String>> readMonsterFile() async {
@@ -66,6 +70,15 @@ class GameIO {
   static Future<String?> getPlayerAction() async {
     stdout.write('행동을 선택하세요 (1: 공격, 2: 방어, 3: 아이템 사용): ');
     return stdin.readLineSync();
+  }
+
+  static Future<String?> getPlayerChoice() async {
+    String? choice;
+    do {
+      print('선택하세요 (1-3):');
+      choice = stdin.readLineSync();
+    } while (choice != '1' && choice != '2' && choice != '3');
+    return choice;
   }
 
   static Future<bool> askToContinue() async {

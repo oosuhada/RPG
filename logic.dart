@@ -36,7 +36,12 @@ class Game {
     print('\n${name}님 반갑습니다.');
 
     bool isNewPlayer = await GameIO.isNewPlayer(name);
-    if (isNewPlayer || await GameIO.askForTutorial()) {
+    if (isNewPlayer) {
+      print('처음 오셨군요!');
+      if (await GameIO.askForTutorial(true)) {
+        await GameIO.showTutorial();
+      }
+    } else if (await GameIO.askForTutorial(false)) {
       await GameIO.showTutorial();
     }
 
@@ -181,15 +186,40 @@ class Game {
     }
   }
 
+  Future<void> levelUpBonus() async {
+    print('레벨업 보너스를 선택하세요:');
+    print('1. 체력 10 증가');
+    print('2. 공격력 10 증가');
+    print('3. 방어력 10 증가');
+
+    String? choice = await GameIO.getPlayerChoice();
+    switch (choice) {
+      case '1':
+        character!.health += 10;
+        print('체력이 10 증가했습니다. 현재 체력: ${character!.health}');
+        break;
+      case '2':
+        character!.attack += 10;
+        print('공격력이 10 증가했습니다. 현재 공격력: ${character!.attack}');
+        break;
+      case '3':
+        character!.defense += 10;
+        print('방어력이 10 증가했습니다. 현재 방어력: ${character!.defense}');
+        break;
+      default:
+        print('잘못된 선택입니다. 체력이 10 증가합니다.');
+        character!.health += 10;
+        print('체력이 10 증가했습니다. 현재 체력: ${character!.health}');
+    }
+    print('캐릭터의 능력치가 향상되었습니다!');
+  }
+
   Future<void> levelUp() async {
     level++;
-    int healthIncrease = 10;
-    character!.health += healthIncrease;
     character!.level = level;
     print('축하합니다! 모든 몬스터를 물리쳤습니다.');
     print('레벨이 올랐습니다! 현재 레벨: $level');
-    print('레벨업 보너스로 체력이 $healthIncrease 증가했습니다! 현재 체력: ${character!.health}');
-    character!.levelUpBonus();
+    await levelUpBonus();
   }
 
   Future<void> endGame(bool isVictory) async {
@@ -206,7 +236,19 @@ class Game {
     if (isVictory && defeatedMonsters == totalMonsters) {
       await levelUp();
     }
-    await GameIO.saveResult(character!, result);
+
+    // 결과 저장 여부 확인
+    print('정말 결과를 저장하지 않고 종료하시려면 "종료"를 입력해주세요.');
+    String? response =
+        await GameIO.getPlayerChoice(); // getPlayerChoice 메서드에서 '종료' 입력을 처리합니다.
+
+    if (response?.toLowerCase() == '종료') {
+      print('게임을 종료합니다.');
+      return; // 게임 종료
+    } else {
+      await GameIO.saveResult(character!, result);
+      print('결과가 저장되었습니다.');
+    }
 
     if (isVictory && defeatedMonsters == totalMonsters) {
       if (await GameIO.askToContinueNextLevel()) {
