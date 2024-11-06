@@ -65,35 +65,48 @@ class Game {
     try {
       final previousResults = await GameIO.loadPreviousResults(name);
       if (previousResults.isNotEmpty) {
-        String lastResult = previousResults.last;
-        final results = lastResult.split(',');
-        if (results.length == 4) {
-          int previousHealth = int.parse(results[1]);
-          String previousResult = results[2];
-          int previousLevel = int.parse(results[3]);
-          print(
-              '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
-
-          if (previousResult.contains('중간승리') ||
-              previousResult.contains('최종승리')) {
-            character!.setHealth(previousHealth);
-            character!.level = previousLevel;
-            level = previousLevel;
+        bool foundExactMatch = false;
+        for (String result in previousResults.reversed) {
+          final results = result.split(',');
+          if (results.length == 5 && results[0] == name) {
+            // 이름 필드 추가 및 정확한 일치 확인
+            foundExactMatch = true;
+            int previousHealth = int.parse(results[1]);
+            String previousResult = results[2];
+            int previousLevel = int.parse(results[3]);
+            int previousAttack = int.parse(results[4]); // 공격력 정보 추가
             print(
-                '이전 게임의 체력과 레벨을 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}');
-            if (previousResult.contains('최종승리')) {
-              print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
-              level++;
-              character!.level = level;
-              resetMonsters();
+                '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
+
+            if (previousResult.contains('중간승리') ||
+                previousResult.contains('최종승리')) {
+              character!.setHealth(previousHealth);
+              character!.level = previousLevel;
+              character!.attack = previousAttack; // 공격력 설정
+              level = previousLevel;
+              print(
+                  '이전 게임의 체력과 레벨을 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}, 공격력: ${character!.attack}');
+              if (previousResult.contains('최종승리')) {
+                print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+                level++;
+                character!.level = level;
+                resetMonsters();
+              }
+            } else {
+              print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
             }
-          } else {
-            print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
+            break; // 정확한 일치를 찾았으므로 루프 종료
           }
         }
+        if (!foundExactMatch) {
+          print('정확히 일치하는 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
+        }
+      } else {
+        print('이전 게임 기록이 없습니다. 새로운 게임을 시작합니다.');
       }
     } catch (e) {
       print('이전 결과를 불러오는 데 실패했습니다: $e');
+      print('새로운 게임을 시작합니다.');
     }
   }
 
