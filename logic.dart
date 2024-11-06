@@ -36,7 +36,6 @@ class Game {
     print('\n${name}님 반갑습니다.');
 
     bool isNewPlayer = await GameIO.isNewPlayer(name);
-
     if (isNewPlayer || await GameIO.askForTutorial()) {
       await GameIO.showTutorial();
     }
@@ -101,19 +100,21 @@ class Game {
     return monsters[Random().nextInt(monsters.length)];
   }
 
-  Stream<BattleState> battle(Monster monster) async* {
+  Future<bool> battle(Monster monster) async {
     print('\n새로운 몬스터가 나타났습니다!');
     monster.showStatus();
 
     while (character!.health > 0 && monster.health > 0) {
-      yield BattleState(character!, monster);
+      print('\n${character?.name}의 턴');
+      character?.showStatus();
+      monster.showStatus();
+
       String? action = await GameIO.getPlayerAction();
       await performAction(action, monster);
 
-      switch (monster.health) {
-        case <= 0:
-          print('${monster.name}을(를) 물리쳤습니다!');
-          return;
+      if (monster.health <= 0) {
+        print('${monster.name}을(를) 물리쳤습니다!');
+        return true;
       }
 
       print('\n${monster.name}의 턴');
@@ -121,9 +122,11 @@ class Game {
 
       if (character!.health <= 0) {
         print('${character?.name}이(가) 쓰러졌습니다. 게임 오버!');
-        return;
+        return false;
       }
     }
+
+    return false;
   }
 
   Future<void> performAction(String? action, Monster monster) async {
@@ -155,15 +158,9 @@ class Game {
 
     while (character!.health > 0 && defeatedMonsters < totalMonsters) {
       Monster currentMonster = getRandomMonster();
-      print('새로운 몬스터가 나타났습니다!');
-      currentMonster.showStatus();
+      bool victorious = await battle(currentMonster);
 
-      // ignore: unused_local_variable
-      await for (var state in battle(currentMonster)) {
-        // 전투 상태 처리
-      }
-
-      if (currentMonster.health <= 0) {
+      if (victorious) {
         defeatedMonsters++;
         monsters.remove(currentMonster);
         print('${currentMonster.name}을(를) 물리쳤습니다!');
@@ -172,9 +169,7 @@ class Game {
           await endGame(true);
           return;
         }
-      }
-
-      if (character!.health <= 0) {
+      } else {
         print('게임 오버! ${character!.name}이(가) 쓰러졌습니다.');
         await endGame(false);
         return;
@@ -220,11 +215,4 @@ class Game {
       }
     }
   }
-}
-
-class BattleState {
-  final Character character;
-  final Monster monster;
-
-  BattleState(this.character, this.monster);
 }
