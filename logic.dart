@@ -8,23 +8,34 @@ class Game {
   Character? character; //character 필드가 non-nullable로 선언되는 문제 ?로 해결
   List<Monster> monsters = [];
   int defeatedMonsters = 0;
-  int totalMonsters = 0;
+  final int totalMonsters = 3;
   bool gameOver = false;
   int level = 1; // 추가도전: level 개념 추가
 
   Future<void> loadMonsterStats() async {
     try {
-      monsters.clear(); // 기존 몬스터 목록을 초기화
+      monsters.clear();
       final monsterLines = await GameIO.readMonsterFile();
-      for (var line in monsterLines) {
-        final stats = line.split(',');
+      for (int i = 0; i < totalMonsters && i < monsterLines.length; i++) {
+        final stats = monsterLines[i].split(',');
         if (stats.length != 3) continue;
         String name = stats[0];
-        int health = int.parse(stats[1]) + (level - 1) * 10; // 레벨에 따라 체력 증가
-        int maxAttack = int.parse(stats[2]) + level * 5;
+        int baseHealth = int.parse(stats[1]);
+        int baseAttack = int.parse(stats[2]);
+        int health = baseHealth + (level - 1) * 10;
+        int maxAttack = baseAttack + (level - 1) * 5;
         monsters.add(Monster(name, health, maxAttack, level));
       }
-      totalMonsters = monsters.length;
+
+      // 검증 코드 추가
+      assert(monsters.length == totalMonsters,
+          "몬스터 수가 $totalMonsters가 아닙니다: ${monsters.length}");
+
+      if (level > 1) {
+        print('\n몬스터들이 강화되었습니다!');
+        print('체력 증가: +${(level - 1) * 10}');
+        print('공격력 증가: +${(level - 1) * 5}');
+      }
     } catch (e) {
       print('몬스터 데이터를 불러오는 데 실패했습니다: $e');
       GameIO.exitGame();
@@ -153,37 +164,55 @@ class Game {
   }
 
   Future<void> startGame() async {
-    await loadCharacterStats();
-    await loadMonsterStats();
-    totalMonsters = monsters.length;
+    try {
+      if (character == null) {
+        await loadCharacterStats();
+      }
+      await loadMonsterStats();
+      defeatedMonsters = 0;
+      print('');
+      print('게임을 시작합니다!');
+      print('현재 레벨: $level');
+      character!.showStatus();
 
-    print('');
-    print('게임을 시작합니다!');
-    print('현재 레벨: $level');
-    character!.showStatus();
+      if (character != null) {
+        character!.showStatus();
 
-    while (character!.health > 0 && defeatedMonsters < totalMonsters) {
-      Monster currentMonster = getRandomMonster();
-      bool victorious = await battle(currentMonster);
+        if (character!.health <= 0) {
+          print('캐릭터의 체력이 0 이하입니다. 체력을 회복합니다.');
+          character!.health = 100; // 또는 다른 적절한 초기 체력값
+        }
 
-      if (victorious) {
-        defeatedMonsters++;
-        monsters.remove(currentMonster);
-        print('${currentMonster.name}을(를) 물리쳤습니다!');
+        while (character!.health > 0 && defeatedMonsters < totalMonsters) {
+          Monster currentMonster = getRandomMonster();
+          bool victorious = await battle(currentMonster);
 
-        if (defeatedMonsters < totalMonsters && !await GameIO.askToContinue()) {
+          if (victorious) {
+            monsters.remove(currentMonster);
+            if (defeatedMonsters < totalMonsters &&
+                !await GameIO.askToContinue()) {
+              await endGame(true);
+              return;
+            }
+          } else {
+            await endGame(false);
+            return;
+          }
+        }
+
+        if (defeatedMonsters == totalMonsters) {
           await endGame(true);
-          return;
         }
       } else {
-        print('게임 오버! ${character!.name}이(가) 쓰러졌습니다.');
-        await endGame(false);
-        return;
+        print('캐릭터 생성에 실패했습니다. 게임을 다시 시작합니다.');
+        resetGame();
+        await startGame();
       }
-    }
-
-    if (defeatedMonsters == totalMonsters) {
-      await endGame(true);
+    } catch (e) {
+      print('게임 진행 중 오류가 발생했습니다: $e');
+      print('게임을 다시 시작합니다.');
+      resetGame();
+      await startGame();
     }
   }
 
@@ -225,6 +254,13 @@ class Game {
     print('\n주의: 새로운 레벨에서는 몬스터가 더 강력해집니다!');
   }
 
+  void resetGame() {
+    level = 1;
+    defeatedMonsters = 0;
+    monsters.clear();
+    character = null; // 캐릭터를 새로 생성하기 위해 null로 설정
+  }
+
   Future<void> endGame(bool isVictory) async {
     String result = isVictory
         ? (defeatedMonsters == totalMonsters ? '최종승리' : '중간승리')
@@ -235,36 +271,38 @@ class Game {
     if (!isVictory) {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
 
-      print('다시 도전하시겠습니까? (y/n)');
-      String? retry = await GameIO.getPlayerChoice();
-      if (retry?.toLowerCase() == 'y') {
-        resetMonsters();
-        await startGame();
-        return;
+      if (!isVictory) {
+        print('처음부터 다시 도전하시겠습니까? (y/n)');
+        String? retry = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
+        if (retry?.toLowerCase() == 'y') {
+          resetGame();
+          await startGame();
+          return;
+        }
       }
-    }
 
-    if (isVictory && defeatedMonsters == totalMonsters) {
-      await levelUp();
-    }
+      if (isVictory && defeatedMonsters == totalMonsters) {
+        await levelUp();
+      }
 
-    // 결과 저장 여부 확인
-    print('정말 결과를 저장하지 않고 종료하시려면 "종료"를 입력해주세요.');
-    String? response =
-        await GameIO.getPlayerChoice(); // getPlayerChoice 메서드에서 '종료' 입력을 처리합니다.
+      // 결과 저장 여부 확인
+      print('정말 결과를 저장하지 않고 종료하시려면 "종료"를 입력해주세요.');
+      String? response = await GameIO
+          .getPlayerChoice(); // getPlayerChoice 메서드에서 '종료' 입력을 처리합니다.
 
-    if (response?.toLowerCase() == '종료') {
-      print('게임을 종료합니다.');
-      return; // 게임 종료
-    } else {
-      await GameIO.saveResult(character!, result);
-      print('결과가 저장되었습니다.');
-    }
+      if (response?.toLowerCase() == '종료') {
+        print('게임을 종료합니다.');
+        return; // 게임 종료
+      } else {
+        await GameIO.saveResult(character!, result);
+        print('결과가 저장되었습니다.');
+      }
 
-    if (isVictory && defeatedMonsters == totalMonsters) {
-      if (await GameIO.askToContinueNextLevel()) {
-        resetMonsters();
-        await startGame();
+      if (isVictory && defeatedMonsters == totalMonsters) {
+        if (await GameIO.askToContinueNextLevel()) {
+          resetMonsters();
+          await startGame();
+        }
       }
     }
   }
