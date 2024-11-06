@@ -8,6 +8,7 @@ class Character {
   int attack;
   int defense;
   bool hasUsedItem = false; // 도전: 아이템 사용 여부 확인 변수
+  int level = 1; // 자유도전: 레벨 개념 추가
 
   Character(this.name, this.health, this.attack, this.defense) {
     this.maxHealth = health; // 초기 체력을 최대 체력으로 설정
@@ -16,6 +17,13 @@ class Character {
   // 체력 설정 메서드 추가
   void setHealth(int newHealth) {
     health = min(newHealth, maxHealth); // 최대 체력을 초과하지 않도록 설정
+  }
+
+  // 자유도전: 레벨업 보너스 체력 적용
+  void levelUpBonus() {
+    health += 10;
+    maxHealth += 10;
+    print('레벨업 보너스로 체력이 증가했습니다! 현재 체력: $health');
   }
 
   // 몬스터를 공격하는 메서드
@@ -57,9 +65,10 @@ class Monster {
   late int attack; //attack 필드가 non-nullable로 선언되는 문제 late로 해결
   int defense = 0;
   int turnCounter = 0; // 도전: 턴 카운터 변수 추가
+  int level; // level 추가
 
-  Monster(this.name, this.health, this.maxAttack) {
-    attack = Random().nextInt(maxAttack) + 1;
+  Monster(this.name, this.health, this.maxAttack, this.level) {
+    attack = Random().nextInt(maxAttack) + level * 5; // 추가도전: 레벨에 따른 공격력 증가
   }
 
   // 캐릭터를 공격하는 메서드
