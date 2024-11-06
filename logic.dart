@@ -231,6 +231,14 @@ class Game {
     print('물리친 몬스터 수: $defeatedMonsters');
     if (!isVictory) {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
+
+      print('다시 도전하시겠습니까? (y/n)');
+      String? retry = await GameIO.getPlayerChoice();
+      if (retry?.toLowerCase() == 'y') {
+        resetMonsters();
+        await startGame();
+        return;
+      }
     }
 
     if (isVictory && defeatedMonsters == totalMonsters) {
