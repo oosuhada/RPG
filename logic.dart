@@ -287,7 +287,7 @@ class Game {
       if (!isVictory) {
         print('처음부터 다시 도전하시겠습니까? (y/n)');
         String? retry = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
-        if (retry?.toLowerCase() == 'y') {
+        if (retry.toLowerCase() == 'y') {
           resetGame();
           await startGame();
           return;
@@ -303,7 +303,7 @@ class Game {
       String? response = await GameIO
           .getPlayerChoice(); // getPlayerChoice 메서드에서 '종료' 입력을 처리합니다.
 
-      if (response?.toLowerCase() == '종료') {
+      if (response.toLowerCase() == '종료') {
         print('게임을 종료합니다.');
         return; // 게임 종료
       } else {

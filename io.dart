@@ -127,4 +127,10 @@ class GameIO {
       }
     }
   }
+
+  static Future<bool> askToEndGame() async {
+    print('게임을 종료하시겠습니까? (y/n)');
+    String? response = await getPlayerChoice(validChoices: ['y', 'n']);
+    return response.toLowerCase() == 'y';
+  }
 }
