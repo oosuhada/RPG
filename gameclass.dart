@@ -48,11 +48,29 @@ class Game {
         if (previousResults.isNotEmpty) {
           String lastResult = previousResults.last;
           final results = lastResult.split(',');
-          if (results.length == 3) {
+          if (results.length == 4) {
             int previousHealth = int.parse(results[1]);
             String previousResult = results[2];
-            print('이전 게임 결과: 체력 $previousHealth, 결과 $previousResult');
-            // ... (나머지 코드는 동일)
+            int previousLevel = int.parse(results[3]);
+            print(
+                '이전 게임 결과: 체력 $previousHealth, 결과 $previousResult, 레벨 $previousLevel');
+
+            if (previousResult.contains('중간승리') ||
+                previousResult.contains('최종승리')) {
+              character!.setHealth(previousHealth);
+              character!.level = previousLevel;
+              level = previousLevel;
+              print(
+                  '이전 게임의 체력과 레벨을 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}');
+              if (previousResult.contains('최종승리')) {
+                print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+                level++;
+                character!.level = level;
+                resetMonsters();
+              }
+            } else {
+              print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
+            }
           }
         }
       }
@@ -154,6 +172,7 @@ class Game {
 
     print('');
     print('게임을 시작합니다!');
+    print('현재 레벨: $level');
     character!.showStatus();
 
     while (character!.health > 0 && defeatedMonsters < totalMonsters) {
@@ -185,6 +204,7 @@ class Game {
       print('축하합니다! 모든 몬스터를 물리쳤습니다.');
       level++;
       character!.levelUpBonus();
+      print('레벨이 올랐습니다! 현재 레벨: $level');
       await endGame(true);
     }
   }
@@ -218,7 +238,8 @@ class Game {
       stdout.write('결과를 저장하시겠습니까? (y/n): ');
       String? answer = stdin.readLineSync()?.toLowerCase();
       if (answer == 'y') {
-        String content = '${character!.name},${character!.health},$result';
+        String content =
+            '${character!.name},${character!.health},$result,${character!.level}';
         try {
           await File('result.txt')
               .writeAsString(content + '\n', mode: FileMode.append);
