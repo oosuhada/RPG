@@ -1,6 +1,4 @@
-import 'dart:io';
-import 'dart:math';
-import 'class.dart';
+import 'game.dart';
 
 void main() {
   Game game = Game();
