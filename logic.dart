@@ -63,17 +63,19 @@ class Game {
   Future<void> loadPreviousResult(String name) async {
     try {
       final previousResults = await GameIO.loadPreviousResults(name);
+      print('저장된 결과: $previousResults'); // 디버깅 메시지
       if (previousResults.isNotEmpty) {
         bool foundExactMatch = false;
         for (String result in previousResults.reversed) {
           final results = result.split(',');
-          if (results.length == 5 && results[0] == name) {
-            // 이름 필드 추가 및 정확한 일치 확인
+          if (results.length == 5 &&
+              results[0].trim().toLowerCase() == name.trim().toLowerCase()) {
             foundExactMatch = true;
             int previousHealth = int.parse(results[1]);
             String previousResult = results[2];
             int previousLevel = int.parse(results[3]);
             int previousAttack = int.parse(results[4]);
+            print('일치하는 결과 찾음: $results'); // 디버깅 메시지
             print(
                 '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel $previousResult');
             if (previousResult.contains('중간승리') ||
@@ -97,10 +99,10 @@ class Game {
           }
         }
         if (!foundExactMatch) {
-          print('반갑습니다. 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
+          print('정확히 일치하는 이름의 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
         }
       } else {
-        print('반갑습니다. 이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
+        print('이전 게임 기록이 없습니다. 새로운 게임을 시작합니다.');
       }
     } catch (e) {
       print('이전 결과를 불러오는 데 실패했습니다: $e');
@@ -136,8 +138,9 @@ class Game {
       character?.showStatus();
       monster.showStatus();
       String? action = await GameIO.getPlayerAction();
-      if (await checkGameEnd(action)) return false;
-      await performAction(action, monster);
+      if (GameIO.checkForReset(action ?? '')) {
+        return false;
+      }
       if (monster.health <= 0) {
         print('${monster.name}을(를) 물리쳤습니다!');
         return true;

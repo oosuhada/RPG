@@ -44,25 +44,24 @@ class GameIO {
     final file = File('result.txt');
     if (await file.exists()) {
       final contents = await file.readAsLines();
-      return !contents.any((line) => line.startsWith(name));
+      return !contents.any((line) => line.split(',')[0].trim() == name.trim());
     }
     return true;
   }
 
   static Future<bool> askForTutorial(bool isNewPlayer) async {
-    if (isNewPlayer) {
-      print('튜토리얼을 확인하시겠습니까? (y/n)');
-    } else {
-      print('튜토리얼을 다시 확인하시겠습니까? (y/n)');
-    }
-    String? response = stdin.readLineSync()?.toLowerCase();
-    return response == 'y';
+    String prompt =
+        isNewPlayer ? '튜토리얼을 확인하시겠습니까? (y/n)' : '튜토리얼을 다시 확인하시겠습니까? (y/n)';
+    return await getYesNoAnswer(prompt);
   }
 
   static Future<List<String>> readMonsterFile() async {
     final file = File('monsters.txt');
     final contents = await file.readAsString();
-    return contents.split('\n');
+    return contents
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
   }
 
   static void exitGame() {
@@ -73,7 +72,10 @@ class GameIO {
     final file = File('result.txt');
     if (await file.exists()) {
       final contents = await file.readAsLines();
-      return contents.where((line) => line.startsWith(name)).toList();
+      return contents.where((line) {
+        final parts = line.split(',');
+        return parts.isNotEmpty && parts[0].trim() == name.trim();
+      }).toList();
     }
     return [];
   }
@@ -90,58 +92,47 @@ class GameIO {
       if (prompt != null) {
         print(prompt);
       }
-      choice = stdin.readLineSync();
+      choice = stdin.readLineSync()?.toLowerCase();
+      if (choice == 'reset') return 'reset';
     } while (validChoices != null && !validChoices.contains(choice));
     return choice ?? '';
   }
 
   static Future<bool> askToContinue() async {
+    return await getYesNoAnswer('\n다음 몬스터와 싸우시겠습니까? (y/n): ');
+  }
+
+  static Future<bool> askToContinueNextLevel() async {
+    return await getYesNoAnswer('다음 레벨을 이어서 진행하시겠습니까? (y/n): ');
+  }
+
+  static Future<void> saveResult(Character character, String result) async {
+    if (await getYesNoAnswer('결과를 저장하시겠습니까? (y/n): ')) {
+      String content =
+          '${character.name},${character.health},$result,${character.level},${character.attack}';
+      try {
+        await File('result.txt')
+            .writeAsString(content + '\n', mode: FileMode.append);
+        print('결과가 result.txt 파일에 저장되었습니다.');
+      } catch (e) {
+        print('결과 저장 중 오류가 발생했습니다: $e');
+      }
+    } else if (await getYesNoAnswer('정말 결과를 저장하지 않으시겠습니까? (y/n): ')) {
+      print('결과를 저장하지 않고 진행합니다.');
+    }
+  }
+
+  static Future<bool> askToEndGame() async {
+    return await getYesNoAnswer('게임을 종료하시겠습니까? (y/n)');
+  }
+
+  static Future<bool> getYesNoAnswer(String prompt) async {
     while (true) {
-      stdout.write('\n다음 몬스터와 싸우시겠습니까? (y/n): ');
+      stdout.write(prompt);
       String? answer = stdin.readLineSync()?.toLowerCase();
       if (answer == 'y') return true;
       if (answer == 'n') return false;
       print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
     }
-  }
-
-  static Future<bool> askToContinueNextLevel() async {
-    stdout.write('다음 레벨을 이어서 진행하시겠습니까? (y/n): ');
-    String? answer = stdin.readLineSync()?.toLowerCase();
-    return answer == 'y';
-  }
-
-  static Future<void> saveResult(Character character, String result) async {
-    while (true) {
-      stdout.write('결과를 저장하시겠습니까? (y/n): ');
-      String? answer = stdin.readLineSync()?.toLowerCase();
-      if (answer == 'y') {
-        String content =
-            '${character.name},${character.health},$result,${character.level}';
-        try {
-          await File('result.txt')
-              .writeAsString(content + '\n', mode: FileMode.append);
-          print('결과가 result.txt 파일에 저장되었습니다.');
-        } catch (e) {
-          print('결과 저장 중 오류가 발생했습니다: $e');
-        }
-        break;
-      } else if (answer == 'n') {
-        stdout.write('정말 결과를 저장하지 않으시겠습니까? (y/n): ');
-        String? confirmAnswer = stdin.readLineSync()?.toLowerCase();
-        if (confirmAnswer == 'y') {
-          print('결과를 저장하지 않고 진행합니다.');
-          break;
-        }
-      } else {
-        print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
-      }
-    }
-  }
-
-  static Future<bool> askToEndGame() async {
-    print('게임을 종료하시겠습니까? (y/n)');
-    String? response = await getPlayerChoice(validChoices: ['y', 'n']);
-    return response.toLowerCase() == 'y';
   }
 }
