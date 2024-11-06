@@ -144,7 +144,6 @@ class Game {
     }
   }
 
-  // 게임 시작 메서드
   Future<void> startGame() async {
     await loadCharacterStats();
     await loadMonsterStats();
@@ -184,12 +183,19 @@ class Game {
     }
 
     if (defeatedMonsters == totalMonsters) {
-      print('축하합니다! 모든 몬스터를 물리쳤습니다.');
-      level++;
-      character!.levelUpBonus();
-      print('레벨이 올랐습니다! 현재 레벨: $level');
       await endGame(true);
     }
+  }
+
+  Future<void> levelUp() async {
+    level++;
+    int healthIncrease = 10;
+    character!.health += healthIncrease;
+    character!.level = level;
+    print('축하합니다! 모든 몬스터를 물리쳤습니다.');
+    print('레벨이 올랐습니다! 현재 레벨: $level');
+    print('레벨업 보너스로 체력이 $healthIncrease 증가했습니다! 현재 체력: ${character!.health}');
+    character!.levelUpBonus();
   }
 
   Future<void> endGame(bool isVictory) async {
@@ -203,13 +209,13 @@ class Game {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
     }
 
+    if (isVictory && defeatedMonsters == totalMonsters) {
+      await levelUp();
+    }
     await GameIO.saveResult(character!, result);
 
     if (isVictory && defeatedMonsters == totalMonsters) {
       if (await GameIO.askToContinueNextLevel()) {
-        level++;
-        character!.levelUpBonus();
-        print('레벨이 올랐습니다! 현재 레벨: $level');
         resetMonsters();
         await startGame();
       }
