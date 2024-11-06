@@ -4,11 +4,19 @@ import 'dart:math';
 class Character {
   String name;
   int health;
+  late int maxHealth; // 최대 체력 개념 추가
   int attack;
   int defense;
   bool hasUsedItem = false; // 도전: 아이템 사용 여부 확인 변수
 
-  Character(this.name, this.health, this.attack, this.defense);
+  Character(this.name, this.health, this.attack, this.defense) {
+    this.maxHealth = health; // 초기 체력을 최대 체력으로 설정
+  }
+
+  // 체력 설정 메서드 추가
+  void setHealth(int newHealth) {
+    health = min(newHealth, maxHealth); // 최대 체력을 초과하지 않도록 설정
+  }
 
   // 몬스터를 공격하는 메서드
   void attackMonster(Monster monster) {

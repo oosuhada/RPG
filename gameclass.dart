@@ -12,7 +12,6 @@ class Game {
 
   void loadCharacterStats() {
     try {
-      // characters.txt 파일에서 캐릭터 정보 읽기
       final file = File('characters.txt');
       final contents = file.readAsStringSync();
       final stats = contents.split(',');
@@ -41,22 +40,28 @@ class Game {
     try {
       final file = File('result.txt');
       if (file.existsSync()) {
-        final contents = file.readAsStringSync();
-        final results = contents.split(',');
-        if (results.length == 3 && results[0] == name) {
-          int previousHealth = int.parse(results[1]);
-          String previousResult = results[2];
-          print('이전 게임 결과: 체력 $previousHealth, 결과 $previousResult');
+        final contents = file.readAsLinesSync();
+        List<String> previousResults =
+            contents.where((line) => line.startsWith(name)).toList();
 
-          if (previousResult == '중간승리' || previousResult == '최종승리') {
-            character!.health = previousHealth;
-            print('이전 게임의 체력을 이어받았습니다.');
-            if (previousResult == '최종승리') {
-              print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
-              resetMonsters();
+        if (previousResults.isNotEmpty) {
+          String lastResult = previousResults.last;
+          final results = lastResult.split(',');
+          if (results.length == 3) {
+            int previousHealth = int.parse(results[1]);
+            String previousResult = results[2];
+            print('이전 게임 결과: 체력 $previousHealth, 결과 $previousResult');
+
+            if (previousResult == '중간승리' || previousResult == '최종승리') {
+              character!.setHealth(previousHealth); // 체력 설정 메서드 사용
+              print('이전 게임의 체력을 이어받았습니다. 현재 체력: ${character!.health}');
+              if (previousResult == '최종승리') {
+                print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+                resetMonsters();
+              }
+            } else {
+              print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
             }
-          } else {
-            print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
           }
         }
       }
@@ -234,24 +239,10 @@ class Game {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
     }
 
-    bool validInput = false;
-    while (!validInput) {
-      stdout.write('결과를 저장하시겠습니까? (y/n): ');
-      String? answer = stdin.readLineSync()?.toLowerCase();
-      if (answer == 'y') {
-        saveResult(result);
-        validInput = true;
-      } else if (answer == 'n') {
-        print('결과를 저장하지 않았습니다.');
-        validInput = true;
-      } else {
-        print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
-      }
-    }
+    saveResult(result);
   }
 
   void saveResult(String result) {
-    // 게임 결과 저장 여부 확인 및 저장
     while (true) {
       stdout.write('결과를 저장하시겠습니까? (y/n): ');
       String? answer = stdin.readLineSync()?.toLowerCase();
@@ -259,17 +250,26 @@ class Game {
         // 결과 문자열 생성
         String content = '${character!.name},${character!.health},$result';
 
-        // result.txt 파일에 결과 저장
+        // result.txt 파일에 결과 추가
         try {
-          File('result.txt').writeAsStringSync(content);
+          File('result.txt')
+              .writeAsStringSync(content + '\n', mode: FileMode.append);
           print('결과가 result.txt 파일에 저장되었습니다.');
         } catch (e) {
           print('결과 저장 중 오류가 발생했습니다: $e');
         }
         break;
       } else if (answer == 'n') {
-        print('결과를 저장하지 않았습니다.');
-        break;
+        stdout.write('정말 결과를 저장하지 않고 게임을 종료하시겠습니까? (y/n): ');
+        String? confirmAnswer = stdin.readLineSync()?.toLowerCase();
+        if (confirmAnswer == 'y') {
+          print('결과를 저장하지 않고 게임을 종료합니다.');
+          break;
+        } else if (confirmAnswer == 'n') {
+          continue; // 다시 저장 여부를 물어봄
+        } else {
+          print('올바른 입력이 아닙니다. 다시 선택해주세요.');
+        }
       } else {
         print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
       }
