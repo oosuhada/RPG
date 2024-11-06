@@ -72,13 +72,16 @@ class GameIO {
     return stdin.readLineSync();
   }
 
-  static Future<String?> getPlayerChoice() async {
+  static Future<String> getPlayerChoice(
+      {String? prompt, List<String>? validChoices}) async {
     String? choice;
     do {
-      print('선택하세요 (1-3):');
+      if (prompt != null) {
+        print(prompt);
+      }
       choice = stdin.readLineSync();
-    } while (choice != '1' && choice != '2' && choice != '3');
-    return choice;
+    } while (validChoices != null && !validChoices.contains(choice));
+    return choice ?? '';
   }
 
   static Future<bool> askToContinue() async {
