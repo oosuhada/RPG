@@ -1,4 +1,4 @@
-import 'game.dart';
+import 'gameclass.dart';
 
 void main() {
   Game game = Game();
