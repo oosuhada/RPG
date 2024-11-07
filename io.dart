@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'characterclass.dart';
 
 class GameIO {
   static Future<String> getCharacterName() async {
-    // 사용자로부터 올바른 캐릭터 이름 입력 받기
     while (true) {
       stdout.write('캐릭터의 이름을 입력하세요: ');
       String? name = stdin.readLineSync();
@@ -31,11 +31,9 @@ class GameIO {
 4. 몬스터를 물리치면 다음 몬스터와 싸울지 선택할 수 있습니다.
 5. 모든 몬스터를 물리치면 레벨업합니다.
 6. 게임 중 언제든지 'reset'을 입력하면 게임을 종료할 수 있습니다.
-7. 게임 종료 시 결과가 저장할 수 있으며 다음 게임에서 이어서 플레이할 수 있습니다.
-
+7. 게임 종료 시 결과를 저장할 수 있으며 다음 게임에서 이어서 플레이할 수 있습니다.
 행운을 빕니다!
-  ''');
-
+''');
     print('튜토리얼을 종료하려면 아무 키나 누르세요...');
     await stdin.readLineSync();
   }
@@ -107,10 +105,13 @@ class GameIO {
     return await getYesNoAnswer('다음 레벨을 이어서 진행하시겠습니까? (y/n): ');
   }
 
-  static Future<void> saveResult(Character character, String result) async {
+  static Future<void> saveResult(
+      Character character, String result, int level, int stage) async {
     if (await getYesNoAnswer('결과를 저장하시겠습니까? (y/n): ')) {
+      String currentDate =
+          DateTime.now().toString().split('.')[0]; // YYYY-MM-DD HH:mm:ss 형식
       String content =
-          '${character.name},${character.health},$result,${character.level},${character.attack},${character.defense}';
+          '$currentDate,${character.name},${character.health},$result,$level,$stage,${character.attack},${character.defense}';
       try {
         await File('result.txt')
             .writeAsString(content + '\n', mode: FileMode.append);
@@ -121,8 +122,7 @@ class GameIO {
     } else if (await getYesNoAnswer('정말 결과를 저장하지 않으시겠습니까? (y/n): ')) {
       print('결과를 저장하지 않고 진행합니다.');
     } else {
-      // 사용자가 두 번째 질문에도 'n'을 선택한 경우, 다시 저장 여부를 물어봅니다.
-      await saveResult(character, result);
+      await saveResult(character, result, level, stage);
     }
   }
 
@@ -137,6 +137,28 @@ class GameIO {
       if (answer == 'y') return true;
       if (answer == 'n') return false;
       print('올바른 입력이 아닙니다. y 또는 n을 입력해주세요.');
+    }
+  }
+
+  static Future<void> showRecentPlayHistory(String name) async {
+    final previousResults = await loadPreviousResults(name);
+    previousResults.sort((a, b) => DateTime.parse(b.split(',')[0])
+        .compareTo(DateTime.parse(a.split(',')[0])));
+    print('\n최근 5개의 플레이 기록:');
+    for (int i = 0; i < min(5, previousResults.length); i++) {
+      final results = previousResults[i].split(',');
+      if (results.length == 8) {
+        String date = results[0];
+        String playerName = results[1];
+        int previousHealth = int.parse(results[2]);
+        String previousResult = results[3];
+        int previousLevel = int.parse(results[4]);
+        int previousStage = int.parse(results[5]);
+        int previousAttack = int.parse(results[6]);
+        int previousDefense = int.parse(results[7]);
+        print(
+            '$date - $playerName - 레벨: $previousLevel, 스테이지: $previousStage, $previousResult, 체력: $previousHealth, 공격력: $previousAttack, 방어력: $previousDefense');
+      }
     }
   }
 }

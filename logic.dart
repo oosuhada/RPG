@@ -3,16 +3,16 @@ import 'dart:math';
 import 'characterclass.dart';
 import 'io.dart';
 
-// 게임 클래스 정의
 class Game {
-  Character? character; //character 필드가 non-nullable로 선언되는 문제 ?로 해결
+  Character? character;
   List<Monster> monsters = [];
   int defeatedMonsters = 0;
   final int totalMonsters = 3;
   bool gameOver = false;
-  int level = 1; // 추가도전: level 개념 추가
+  int level = 1;
+  int stage = 1;
 
-  Future<void> loadMonsterStats() async {
+  Future loadMonsterStats() async {
     try {
       monsters.clear();
       final monsterLines = await GameIO.readMonsterFile();
@@ -22,17 +22,16 @@ class Game {
         String name = stats[0];
         int baseHealth = int.parse(stats[1]);
         int baseAttack = int.parse(stats[2]);
-        int health = baseHealth + (level - 1) * 10;
+        int health = baseHealth + (level - 1) * 5;
         int maxAttack = baseAttack + (level - 1) * 5;
         monsters.add(Monster(name, health, maxAttack, level));
       }
-      // 검증 코드 추가
       assert(monsters.length == totalMonsters,
           "몬스터 수가 $totalMonsters가 아닙니다: ${monsters.length}");
       if (level > 1) {
         print('\n몬스터들이 강화되었습니다!');
-        print('체력 증가: +${(level - 1) * 10}');
-        print('공격력 증가: +${(level - 1) * 5}');
+        print('체력 증가: +5');
+        print('공격력 증가: +5');
       }
     } catch (e) {
       print('몬스터 데이터를 불러오는 데 실패했습니다: $e');
@@ -40,61 +39,79 @@ class Game {
     }
   }
 
-  Future<void> loadCharacterStats() async {
+  Future loadCharacterStats() async {
+    await GameIO.showRecentPlayHistory(''); // 모든 플레이어의 기록을 표시
     String name = await GameIO.getCharacterName();
+
     character = Character(name, 100, 20, 1);
     print('\n${name}님 반갑습니다.');
     bool isNewPlayer = await GameIO.isNewPlayer(name);
     if (isNewPlayer) {
-      print('튜토리얼을 확인하시겠습니까? (y/n)');
-      if (await GameIO.getPlayerChoice(validChoices: ['y', 'n']) == 'y') {
+      if (await GameIO.askForTutorial(true)) {
         await GameIO.showTutorial();
       }
     } else {
-      print('튜토리얼을 다시 확인하시겠습니까? (y/n)');
-      if (await GameIO.getPlayerChoice(validChoices: ['y', 'n']) == 'y') {
+      if (await GameIO.askForTutorial(false)) {
         await GameIO.showTutorial();
       }
     }
     await loadPreviousResult(name);
   }
 
-  // 게임 결과 저장 불러오는 메서드 수정
-  Future<void> loadPreviousResult(String name) async {
+  Future loadPreviousResult(String name) async {
     try {
       final previousResults = await GameIO.loadPreviousResults(name);
-      print('불러온 결과: $previousResults'); // 디버깅용
       if (previousResults.isNotEmpty) {
-        final results = previousResults.last.split(',');
-        if (results.length == 6) {
-          // 방어력 정보 추가로 인해 6개 항목
-          int previousHealth = int.parse(results[1]);
-          String previousResult = results[2];
-          int previousLevel = int.parse(results[3]);
-          int previousAttack = int.parse(results[4]);
-          int previousDefense = int.parse(results[5]);
-          print(
-              '이전 게임 결과: 체력 $previousHealth, 레벨 $previousLevel, 공격력 $previousAttack, 방어력 $previousDefense, $previousResult');
-          if (previousResult.contains('중간승리') ||
-              previousResult.contains('최종승리')) {
-            character!.setHealth(previousHealth);
-            character!.level = previousLevel;
-            character!.attack = previousAttack;
-            character!.defense = previousDefense;
-            level = previousLevel;
+        print('\n이전 게임 기록을 찾았습니다.');
+        print('1: 기존 게임 진행, 2: 새 게임 시작');
+        String? choice = await GameIO.getPlayerChoice(validChoices: ['1', '2']);
+
+        if (choice == '1') {
+          final results = previousResults.last.split(',');
+          if (results.length == 8) {
+            // 날짜 포함 8개 항목
+            String date = results[0];
+            int previousHealth = int.parse(results[2]);
+            String previousResult = results[3];
+            int previousLevel = int.parse(results[4]);
+            int previousStage = int.parse(results[5]);
+            int previousAttack = int.parse(results[6]);
+            int previousDefense = int.parse(results[7]);
+
             print(
-                '이전 게임의 상태를 이어받았습니다. 현재 체력: ${character!.health}, 레벨: ${character!.level}, 공격력: ${character!.attack}, 방어력: ${character!.defense}');
-            if (previousResult.contains('최종승리')) {
-              print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
-              level++;
+                '\n이전 게임 상태: $date - 레벨 $previousLevel, 스테이지 $previousStage, $previousResult, 체력: $previousHealth, 공격력: $previousAttack, 방어력: $previousDefense');
+
+            if (previousResult.contains('Stage') ||
+                previousResult.contains('최종승리')) {
+              character!.setHealth(previousHealth);
+              character!.level = previousLevel;
+              character!.attack = previousAttack;
+              character!.defense = previousDefense;
+              level = previousLevel;
+              stage = previousStage;
+
+              print(
+                  '\n현재 게임 상태: 레벨 $level, 스테이지 $stage, 체력: ${character!.health}, 공격력: ${character!.attack}, 방어력: ${character!.defense}');
+
+              if (previousResult.contains('최종승리')) {
+                print('축하합니다! 이전 게임에서 최종 승리하셨습니다. 새로운 도전을 시작합니다.');
+                level = 1;
+                stage = 1;
+                character!.level = level;
+                resetMonsters();
+              }
+            } else {
+              print('이전 게임에서 패배하셨습니다. 해당 단계부터 다시 시작합니다.');
+              level = previousLevel;
+              stage = previousStage;
               character!.level = level;
               resetMonsters();
             }
           } else {
-            print('이전 게임에서 패배하셨습니다. 새로운 게임을 시작합니다.');
+            print('저장된 데이터 형식이 올바르지 않습니다. 새로운 게임을 시작합니다.');
           }
         } else {
-          print('저장된 데이터 형식이 올바르지 않습니다. 새로운 게임을 시작합니다.');
+          print('새 게임을 시작합니다.');
         }
       } else {
         print('이전 게임 기록을 찾지 못했습니다. 새로운 게임을 시작합니다.');
@@ -111,17 +128,14 @@ class Game {
     loadMonsterStats();
   }
 
-  // 도전: 캐릭터 체력 보너스 기능
   void applyHealthBonus() {
     if (Random().nextDouble() < 0.3) {
-      // 30%의 확률로 character의 health를 10 증가
       character?.health += 10;
       print('보너스 체력을 얻었습니다! 현재 체력: ${character?.health}');
     }
   }
 
   Monster getRandomMonster() {
-    // 남아있는 몬스터 중 랜덤으로 선택
     return monsters[Random().nextInt(monsters.length)];
   }
 
@@ -133,15 +147,17 @@ class Game {
       character?.showStatus();
       monster.showStatus();
       String? action = await GameIO.getPlayerAction();
-      if (GameIO.checkForReset(action ?? '')) {
-        return false;
-      }
+      if (await checkGameEnd(action)) return false;
+      await performAction(action, monster);
       if (monster.health <= 0) {
         print('${monster.name}을(를) 물리쳤습니다!');
         return true;
       }
       print('\n${monster.name}의 턴');
+      int initialHealth = character!.health;
       monster.attackCharacter(character!);
+      int damage = initialHealth - character!.health;
+      print('${monster.name}이(가) ${character!.name}에게 $damage의 데미지를 입혔습니다.');
       if (character!.health <= 0) {
         print('${character?.name}이(가) 쓰러졌습니다. 게임 오버!');
         return false;
@@ -150,33 +166,36 @@ class Game {
     return false;
   }
 
-  Future<void> performAction(String? action, Monster monster) async {
+  Future performAction(String? action, Monster monster) async {
     switch (action) {
       case '1':
-        character?.attackMonster(monster);
-        break;
       case '2':
-        character?.defend();
+        print('전투중입니다...');
+        await Future.delayed(Duration(seconds: 1));
+        if (action == '1') {
+          character?.attackMonster(monster);
+        } else {
+          character?.defend();
+        }
         break;
       case '3':
         character?.useItem();
-        break;
+        return; // 아이템 사용 후 다시 행동 선택으로 돌아감
       default:
         print('잘못된 입력입니다. 다시 선택해주세요.');
         await performAction(await GameIO.getPlayerAction(), monster);
     }
   }
 
-  Future<void> startGame() async {
+  Future startGame() async {
     try {
       if (character == null) {
         await loadCharacterStats();
       }
       await loadMonsterStats();
-      defeatedMonsters = 0;
       print('');
       print('게임을 시작합니다!');
-      print('현재 레벨: $level');
+      print('현재 레벨: $level, 스테이지: $stage');
       checkAndDisplayCharacterStatus();
       while (character!.health > 0 && defeatedMonsters < totalMonsters) {
         Monster currentMonster = getRandomMonster();
@@ -188,20 +207,21 @@ class Game {
         }
         monsters.remove(currentMonster);
         defeatedMonsters++;
+        if (defeatedMonsters == totalMonsters) {
+          await endGame(true);
+          return;
+        }
         if (!await askForNextBattle()) {
           await endGame(true);
           return;
         }
-      }
-      if (defeatedMonsters == totalMonsters) {
-        await endGame(true);
       }
     } catch (e) {
       await handleGameError(e);
     }
   }
 
-  Future<void> levelUpBonus() async {
+  Future levelUpBonus() async {
     print('레벨업 보너스를 선택하세요:');
     print('1. 체력 10 증가');
     print('2. 공격력 10 증가');
@@ -228,8 +248,9 @@ class Game {
     print('캐릭터의 능력치가 향상되었습니다!');
   }
 
-  Future<void> levelUp() async {
+  Future levelUp() async {
     level++;
+    stage = 1;
     character!.level = level;
     print('모든 몬스터를 물리쳤습니다.');
     print('\n축하합니다! 레벨 ${level - 1}을 클리어하셨습니다.');
@@ -240,31 +261,51 @@ class Game {
 
   void resetGame() {
     level = 1;
+    stage = 1;
     defeatedMonsters = 0;
     monsters.clear();
-    character = null; // 캐릭터를 새로 생성하기 위해 null로 설정
+    character = null;
   }
 
-  Future<void> endGame(bool isVictory) async {
-    String result = isVictory
-        ? (defeatedMonsters == totalMonsters ? '최종승리' : '중간승리')
-        : '패배';
+  Future endGame(bool isVictory) async {
+    String result;
+    if (isVictory) {
+      if (defeatedMonsters == totalMonsters) {
+        if (level == 10 && stage == 3) {
+          result = '최종승리';
+        } else {
+          result = 'Stage $stage Clear';
+          stage++;
+          if (stage > 3) {
+            await levelUp();
+            stage = 1;
+          }
+        }
+      } else {
+        result = 'Stage $stage 중간승리';
+      }
+    } else {
+      result = '$level단계 패배';
+    }
+
     print('\n게임이 종료되었습니다. 결과: $result');
     print('물리친 몬스터 수: $defeatedMonsters');
     if (!isVictory) {
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
       if (await askToRetry()) {
-        resetGame();
+        resetMonsters();
         await startGame();
         return;
       }
     }
-    if (isVictory && defeatedMonsters == totalMonsters) {
-      await levelUp();
+
+    if (isVictory || !isVictory) {
+      if (await confirmSaveResult()) {
+        await GameIO.saveResult(character!, result, level, stage);
+        print('결과가 저장되었습니다.');
+      }
     }
-    if (!await confirmSaveResult()) return;
-    await GameIO.saveResult(character!, result);
-    print('결과가 저장되었습니다.');
+
     if (isVictory && defeatedMonsters == totalMonsters) {
       if (await GameIO.askToContinueNextLevel()) {
         resetMonsters();
@@ -273,12 +314,18 @@ class Game {
     }
   }
 
+  Future<bool> askToRetry() async {
+    print('해당 단계부터 다시 도전하시겠습니까? (y/n)');
+    String? retry = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
+    return retry.toLowerCase() == 'y';
+  }
+
   void checkAndDisplayCharacterStatus() {
     if (character != null) {
       character!.showStatus();
       if (character!.health <= 0) {
         print('캐릭터의 체력이 0 이하입니다. 체력을 회복합니다.');
-        character!.health = 100; // 또는 다른 적절한 초기 체력값
+        character!.health = 100;
       }
     } else {
       print('캐릭터 생성에 실패했습니다. 게임을 다시 시작합니다.');
@@ -314,15 +361,9 @@ class Game {
     await startGame();
   }
 
-  Future<bool> askToRetry() async {
-    print('처음부터 다시 도전하시겠습니까? (y/n)');
-    String? retry = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
-    return retry.toLowerCase() == 'y';
-  }
-
   Future<bool> confirmSaveResult() async {
-    print('정말 결과를 저장하지 않고 종료하시려면 "종료"를 입력해주세요.');
-    String? response = await GameIO.getPlayerChoice();
-    return response.toLowerCase() != '종료';
+    print('결과를 저장하시겠습니까? (y/n)');
+    String? response = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
+    return response.toLowerCase() == 'y';
   }
 }
