@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'characterclass.dart';
 import 'io.dart';
@@ -180,7 +181,30 @@ class Game {
         break;
       case '3':
         character?.useItem();
-        return; // 아이템 사용 후 다시 행동 선택으로 돌아감
+        print('\n아이템 사용 후 행동을 선택하세요.');
+        // 아이템 사용 후 공격/방어만 선택 가능하도록 수정된 행동 선택
+        String? nextAction;
+        while (true) {
+          stdout.write('행동을 선택하세요 (1: 공격, 2: 방어): ');
+          nextAction = stdin.readLineSync()?.toLowerCase().trim();
+
+          if (nextAction == 'reset') {
+            return await checkGameEnd(nextAction);
+          }
+          if (['1', '2'].contains(nextAction)) {
+            break;
+          }
+          print('올바른 행동을 선택해주세요.');
+        }
+        // 선택된 행동 수행
+        print('전투중입니다...');
+        await Future.delayed(Duration(seconds: 1));
+        if (nextAction == '1') {
+          character?.attackMonster(monster);
+        } else {
+          character?.defend();
+        }
+        break;
       default:
         print('잘못된 입력입니다. 다시 선택해주세요.');
         await performAction(await GameIO.getPlayerAction(), monster);
@@ -288,21 +312,14 @@ class Game {
       result = '$level단계 패배';
     }
 
-    print('\n게임이 종료되었습니다. 결과: $result');
-    print('물리친 몬스터 수: $defeatedMonsters');
     if (!isVictory) {
+      print('\n게임이 종료되었습니다. 결과: $result');
+      print('물리친 몬스터 수: $defeatedMonsters');
       print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
       if (await askToRetry()) {
         resetMonsters();
         await startGame();
         return;
-      }
-    }
-
-    if (isVictory || !isVictory) {
-      if (await confirmSaveResult()) {
-        await GameIO.saveResult(character!, result, level, stage);
-        print('결과가 저장되었습니다.');
       }
     }
 
@@ -352,11 +369,8 @@ class Game {
           return false;
         }
       } else if (response == 'n') {
-        print('\n게임 결과:');
-        print('레벨: $level, 스테이지: $stage');
-        print('결과: Stage $stage 중간승리');
-        print('물리친 몬스터 수: $defeatedMonsters');
-        print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
+        print(
+            '\n게임 결과: 레벨: $level, Stage $stage 승리, 물리친 몬스터 수: $defeatedMonsters 남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
 
         print('\n1: 결과 저장 후 종료하기');
         print('2: 저장하지 않고 종료하기');
@@ -365,8 +379,15 @@ class Game {
         if (choice == '1') {
           await GameIO.saveResult(
               character!, 'Stage $stage 중간승리', level, stage);
+          print('\n게임이 저장되었습니다. 게임을 종료하시려면 reset을 입력해주세요');
+          String? exitChoice =
+              await GameIO.getPlayerChoice(validChoices: ['reset']);
+          if (exitChoice == 'reset') {
+            return false;
+          }
+        } else {
+          return false;
         }
-        return false;
       }
     }
     return true;
@@ -387,11 +408,5 @@ class Game {
     print('게임을 다시 시작합니다.');
     resetGame();
     await startGame();
-  }
-
-  Future<bool> confirmSaveResult() async {
-    print('결과를 저장하시겠습니까? (y/n)');
-    String? response = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
-    return response.toLowerCase() == 'y';
   }
 }
