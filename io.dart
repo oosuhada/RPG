@@ -7,13 +7,17 @@ class GameIO {
   static Future<String> getCharacterName() async {
     while (true) {
       stdout.write('캐릭터의 이름을 입력하세요: ');
-      String? name = stdin.readLineSync();
+      String? name = stdin.readLineSync()?.trim();
       if (name != null &&
           name.isNotEmpty &&
-          RegExp(r'^[a-zA-Z가-힣]+$').hasMatch(name)) {
+          name == name.trim() && // 앞뒤 공백 제거 확인
+          RegExp(r'^[a-zA-Z가-힣]+$').hasMatch(name) && // 한글/영문만 허용
+          !name.contains(RegExp(r'[0-9]')) && // 숫자 불허용
+          !name.contains(RegExp(r'[^\w\s가-힣]'))) {
+        // 특수문자 불허용
         return name;
       }
-      print('올바른 이름을 입력해주세요 (한글 또는 영문).');
+      print('올바른 이름을 입력해주세요 (한글 또는 영문만 사용 가능).');
     }
   }
 
@@ -80,21 +84,28 @@ class GameIO {
   }
 
   static Future<String?> getPlayerAction() async {
-    stdout.write('행동을 선택하세요 (1: 공격, 2: 방어, 3: 아이템 사용): ');
-    return stdin.readLineSync();
+    while (true) {
+      stdout.write('행동을 선택하세요 (1: 공격, 2: 방어, 3: 아이템 사용): ');
+      String? input = stdin.readLineSync()?.toLowerCase().trim();
+
+      if (input == 'reset') return 'reset';
+      if (['1', '2', '3'].contains(input)) return input;
+
+      print('올바른 행동을 선택해주세요.');
+    }
   }
 
-  static Future<String> getPlayerChoice(
-      {String? prompt, List<String>? validChoices}) async {
-    String? choice;
-    do {
-      if (prompt != null) {
-        print(prompt);
+  static Future<String> getPlayerChoice({List<String>? validChoices}) async {
+    while (true) {
+      String? input = stdin.readLineSync()?.toLowerCase().trim();
+      if (input == null || input.isEmpty) continue;
+
+      if (input == 'reset') return 'reset';
+      if (validChoices == null || validChoices.contains(input)) {
+        return input;
       }
-      choice = stdin.readLineSync()?.toLowerCase();
-      if (choice == 'reset') return 'reset';
-    } while (validChoices != null && !validChoices.contains(choice));
-    return choice ?? '';
+      print('올바른 선택지를 입력해주세요: ${validChoices.join("/")}');
+    }
   }
 
   static Future<bool> askToContinue() async {
@@ -107,22 +118,15 @@ class GameIO {
 
   static Future<void> saveResult(
       Character character, String result, int level, int stage) async {
-    if (await getYesNoAnswer('결과를 저장하시겠습니까? (y/n): ')) {
-      String currentDate =
-          DateTime.now().toString().split('.')[0]; // YYYY-MM-DD HH:mm:ss 형식
-      String content =
-          '$currentDate,${character.name},${character.health},$result,$level,$stage,${character.attack},${character.defense}';
-      try {
-        await File('result.txt')
-            .writeAsString(content + '\n', mode: FileMode.append);
-        print('결과가 result.txt 파일에 저장되었습니다.');
-      } catch (e) {
-        print('결과 저장 중 오류가 발생했습니다: $e');
-      }
-    } else if (await getYesNoAnswer('정말 결과를 저장하지 않으시겠습니까? (y/n): ')) {
-      print('결과를 저장하지 않고 진행합니다.');
-    } else {
-      await saveResult(character, result, level, stage);
+    String currentDate = DateTime.now().toString().split('.')[0];
+    String content =
+        '${character.name},${character.level},$stage,$result,${character.health},${character.attack},${character.defense},$currentDate\n';
+
+    try {
+      await File('result.txt').writeAsString(content, mode: FileMode.append);
+      print('결과가 저장되었습니다.');
+    } catch (e) {
+      print('결과 저장 중 오류가 발생했습니다: $e');
     }
   }
 
@@ -141,24 +145,47 @@ class GameIO {
   }
 
   static Future<void> showRecentPlayHistory(String name) async {
-    final previousResults = await loadPreviousResults(name);
-    previousResults.sort((a, b) => DateTime.parse(b.split(',')[0])
-        .compareTo(DateTime.parse(a.split(',')[0])));
-    print('\n최근 5개의 플레이 기록:');
-    for (int i = 0; i < min(5, previousResults.length); i++) {
-      final results = previousResults[i].split(',');
-      if (results.length == 8) {
-        String date = results[0];
-        String playerName = results[1];
-        int previousHealth = int.parse(results[2]);
-        String previousResult = results[3];
-        int previousLevel = int.parse(results[4]);
-        int previousStage = int.parse(results[5]);
-        int previousAttack = int.parse(results[6]);
-        int previousDefense = int.parse(results[7]);
-        print(
-            '$date - $playerName - 레벨: $previousLevel, 스테이지: $previousStage, $previousResult, 체력: $previousHealth, 공격력: $previousAttack, 방어력: $previousDefense');
+    try {
+      final file = File('result.txt');
+      if (await file.exists()) {
+        final lines = await file.readAsLines();
+        final records = lines
+            .map((line) {
+              final parts = line.split(',');
+              if (parts.length < 8) return null;
+              return {
+                'name': parts[0],
+                'level': parts[1],
+                'stage': parts[2],
+                'result': parts[3],
+                'health': parts[4],
+                'attack': parts[5],
+                'defense': parts[6],
+                'date': parts[7],
+                'timestamp': DateTime.parse(parts[7])
+              };
+            })
+            .where((record) => record != null)
+            .toList();
+
+        records.sort((a, b) => b!['timestamp']?.compareTo(a!['timestamp']));
+
+        print('\n최근 5개의 플레이 기록:');
+        for (int i = 0; i < min(5, records.length); i++) {
+          final record = records[i]!;
+          print(
+              '${record['date']} - ${record['name']} - 레벨: ${record['level']}, '
+              '스테이지: ${record['stage']}, ${record['result']}, '
+              '체력: ${record['health']}, 공격력: ${record['attack']}, '
+              '방어력: ${record['defense']}');
+        }
       }
+    } catch (e) {
+      print('기록을 불러오는 중 오류가 발생했습니다: $e');
     }
   }
+}
+
+extension on Object? {
+  compareTo(Object? object) {}
 }

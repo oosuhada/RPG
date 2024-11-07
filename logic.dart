@@ -344,14 +344,42 @@ class Game {
 
   Future<bool> askForNextBattle() async {
     if (defeatedMonsters < totalMonsters) {
-      print('다음 몬스터와 싸우시겠습니까? (y/n/reset):');
-      String? response =
-          await GameIO.getPlayerChoice(validChoices: ['y', 'n', 'reset']);
-      if (response == 'reset' || response == 'n') {
+      print('다음 몬스터와 싸우시겠습니까? (y/n): ');
+      String? response = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
+
+      if (response == 'reset') {
+        if (await confirmEndGame()) {
+          return false;
+        }
+      } else if (response == 'n') {
+        print('\n게임 결과:');
+        print('레벨: $level, 스테이지: $stage');
+        print('결과: Stage $stage 중간승리');
+        print('물리친 몬스터 수: $defeatedMonsters');
+        print('남은 몬스터 수: ${totalMonsters - defeatedMonsters}');
+
+        print('\n1: 결과 저장 후 종료하기');
+        print('2: 저장하지 않고 종료하기');
+
+        String? choice = await GameIO.getPlayerChoice(validChoices: ['1', '2']);
+        if (choice == '1') {
+          await GameIO.saveResult(
+              character!, 'Stage $stage 중간승리', level, stage);
+        }
         return false;
       }
     }
     return true;
+  }
+
+  Future<bool> confirmEndGame() async {
+    print('\n정말 게임을 종료하시겠습니까? (y/n): ');
+    String? response = await GameIO.getPlayerChoice(validChoices: ['y', 'n']);
+    if (response == 'y') {
+      print('\n게임을 종료합니다.');
+      return true;
+    }
+    return false;
   }
 
   Future<void> handleGameError(dynamic error) async {
