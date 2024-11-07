@@ -83,6 +83,102 @@ class GameIO {
     return [];
   }
 
+  static Future<Character> chooseCharacter() async {
+    print('\n사용 가능한 캐릭터:');
+    print('1. 아이언맨 (Technology) - 높은 공격력, 중간 방어력');
+    print('2. 캡틴 아메리카 (Strength) - 높은 방어력, 중간 공격력');
+    print('3. 블랙 위도우 (Speed) - 높은 회피율, 낮은 방어력');
+    print('4. 토르 (Lightning) - 매우 높은 공격력, 낮은 방어력');
+
+    while (true) {
+      stdout.write('캐릭터를 선택하세요 (1-4): ');
+      String? choice = stdin.readLineSync()?.trim();
+
+      switch (choice) {
+        case '1':
+          return createIronMan();
+        case '2':
+          return createCaptainAmerica();
+        case '3':
+          return createBlackWidow();
+        case '4':
+          return createThor();
+        default:
+          print('올바른 번호를 입력해주세요.');
+      }
+    }
+  }
+
+  static Character createIronMan() {
+    return Character("IronMan", "Technology", 100, 25, 10, [
+      Skill("Repulsor Blast", 30, "Technology"),
+      Skill("Unibeam", 45, "Technology", effect: (character, monster) {
+        character.defense -= 2;
+        print('강력한 공격으로 인해 방어력이 2 감소했습니다.');
+      }),
+      Skill("Missile Barrage", 35, "Technology"),
+      Skill("Energy Shield", 0, "Defense", effect: (character, monster) {
+        character.defense += 5;
+        print('에너지 실드로 방어력이 5 증가했습니다.');
+      }),
+    ]);
+  }
+
+  static Character createCaptainAmerica() {
+    return Character("Captain America", "Strength", 120, 20, 15, [
+      Skill("Shield Throw", 25, "Strength"),
+      Skill("Shield Bash", 35, "Strength", effect: (character, monster) {
+        monster.defense -= 2;
+        print('방패 강타로 적의 방어력이 2 감소했습니다.');
+      }),
+      Skill("Shield Block", 0, "Defense", effect: (character, monster) {
+        character.defense += 8;
+        print('방패 방어로 방어력이 8 증가했습니다.');
+      }),
+      Skill("Patriot Strike", 40, "Strength", effect: (character, monster) {
+        character.attack += 3;
+        print('애국심으로 공격력이 3 증가했습니다.');
+      }),
+    ]);
+  }
+
+  static Character createBlackWidow() {
+    return Character("Black Widow", "Speed", 90, 22, 8, [
+      Skill("Widow's Bite", 30, "Speed"),
+      Skill("Acrobatic Strike", 35, "Speed", effect: (character, monster) {
+        character.defense += 3;
+        print('곡예 공격으로 방어력이 3 증가했습니다.');
+      }),
+      Skill("Silent Strike", 45, "Speed", effect: (character, monster) {
+        monster.attack -= 3;
+        print('은밀한 공격으로 적의 공격력이 3 감소했습니다.');
+      }),
+      Skill("Martial Arts Combo", 40, "Speed", effect: (character, monster) {
+        character.attack += 4;
+        print('연계 공격으로 공격력이 4 증가했습니다.');
+      }),
+    ]);
+  }
+
+  static Character createThor() {
+    return Character("Thor", "Lightning", 110, 30, 8, [
+      Skill("Lightning Strike", 35, "Lightning"),
+      Skill("Mjolnir Throw", 40, "Lightning", effect: (character, monster) {
+        monster.defense -= 3;
+        print('묠니르 투척으로 적의 방어력이 3 감소했습니다.');
+      }),
+      Skill("Thunder God's Wrath", 50, "Lightning",
+          effect: (character, monster) {
+        character.attack += 5;
+        print('번개의 격노로 공격력이 5 증가했습니다.');
+      }),
+      Skill("Storm Breaker", 45, "Lightning", effect: (character, monster) {
+        monster.attack -= 4;
+        print('스톰브레이커의 힘으로 적의 공격력이 4 감소했습니다.');
+      }),
+    ]);
+  }
+
   static Future<String?> getPlayerAction() async {
     while (true) {
       stdout.write('행동을 선택하세요 (1: 공격, 2: 방어, 3: 아이템 사용): ');
@@ -116,17 +212,29 @@ class GameIO {
     return await getYesNoAnswer('다음 레벨을 이어서 진행하시겠습니까? (y/n): ');
   }
 
-  static Future<void> saveResult(
+  static Future<String> saveResult(
       Character character, String result, int level, int stage) async {
-    String currentDate = DateTime.now().toString().split('.')[0];
-    String content =
-        '${character.name},${character.level},$stage,$result,${character.health},${character.attack},${character.defense},$currentDate\n';
+    String currentDateTime = DateTime.now().toString().split('.')[0];
+    String date = currentDateTime.split(' ')[0];
+    String time = currentDateTime.split(' ')[1];
+
+    String content = '플레이어 이름/${character.name}, '
+        '캐릭터/${character.characterType}, '
+        '레벨/$level, '
+        '결과/스테이지$stage 클리어, '
+        '체력/${character.health}, '
+        '공격력/${character.attack}, '
+        '방어력/${character.defense}, '
+        '날짜/$date, '
+        '시간/$time\n';
 
     try {
       await File('result.txt').writeAsString(content, mode: FileMode.append);
       print('결과가 저장되었습니다.');
+      return content;
     } catch (e) {
       print('결과 저장 중 오류가 발생했습니다: $e');
+      return '';
     }
   }
 
@@ -151,32 +259,43 @@ class GameIO {
         final lines = await file.readAsLines();
         final records = lines
             .map((line) {
-              final parts = line.split(',');
+              final parts = line.split(', ');
               if (parts.length < 8) return null;
+
+              Map<String, String> record = {};
+              for (var part in parts) {
+                final keyValue = part.split('/');
+                if (keyValue.length == 2) {
+                  record[keyValue[0]] = keyValue[1];
+                }
+              }
+
               return {
-                'name': parts[0],
-                'level': parts[1],
-                'stage': parts[2],
-                'result': parts[3],
-                'health': parts[4],
-                'attack': parts[5],
-                'defense': parts[6],
-                'date': parts[7],
-                'timestamp': DateTime.parse(parts[7])
+                'name': record['플레이어 이름'] ?? '',
+                'level': record['레벨'] ?? '',
+                'result': record['결과'] ?? '',
+                'health': record['체력'] ?? '',
+                'attack': record['공격력'] ?? '',
+                'defense': record['방어력'] ?? '',
+                'date': record['날짜'] ?? '',
+                'time': record['시간'] ?? '',
+                'timestamp': DateTime.parse('${record['날짜']} ${record['시간']}')
               };
             })
             .where((record) => record != null)
             .toList();
 
-        records.sort((a, b) => b!['timestamp']?.compareTo(a!['timestamp']));
+        records.sort((a, b) => b!['timestamp']!.compareTo(a!['timestamp']));
 
         print('\n최근 5개의 플레이 기록:');
         for (int i = 0; i < min(5, records.length); i++) {
           final record = records[i]!;
-          print(
-              '${record['date']} - ${record['name']} - 레벨: ${record['level']}, '
-              '스테이지: ${record['stage']}, ${record['result']}, '
-              '체력: ${record['health']}, 공격력: ${record['attack']}, '
+          print('${record['date']} ${record['time']} - '
+              '플레이어: ${record['name']}, '
+              '레벨: ${record['level']}, '
+              '${record['result']}, '
+              '체력: ${record['health']}, '
+              '공격력: ${record['attack']}, '
               '방어력: ${record['defense']}');
         }
       }
@@ -186,6 +305,6 @@ class GameIO {
   }
 }
 
-extension on Object? {
+extension on Object {
   compareTo(Object? object) {}
 }

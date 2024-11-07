@@ -25,7 +25,19 @@ class Game {
         int baseAttack = int.parse(stats[2]);
         int health = baseHealth + (level - 1) * 5;
         int maxAttack = baseAttack + (level - 1) * 5;
-        monsters.add(Monster(name, health, maxAttack, level));
+        // Monster 생성자 수정 - type, skills 추가
+        monsters.add(Monster(
+          name,
+          "Normal", // 기본 타입
+          health,
+          maxAttack,
+          level,
+          [
+            Skill("Basic Attack", 20, "Normal"),
+            Skill("Power Strike", 30, "Normal"),
+            Skill("Fury Attack", 35, "Normal")
+          ],
+        ));
       }
       assert(monsters.length == totalMonsters,
           "몬스터 수가 $totalMonsters가 아닙니다: ${monsters.length}");
@@ -44,8 +56,11 @@ class Game {
     await GameIO.showRecentPlayHistory(''); // 모든 플레이어의 기록을 표시
     String name = await GameIO.getCharacterName();
 
-    character = Character(name, 100, 20, 1);
+    // Character 임시 생성 전 캐릭터 선택
+    character =
+        await GameIO.chooseCharacter(); // 이미 구현된 chooseCharacter() 메서드 사용
     print('\n${name}님 반갑습니다.');
+
     bool isNewPlayer = await GameIO.isNewPlayer(name);
     if (isNewPlayer) {
       if (await GameIO.askForTutorial(true)) {
@@ -143,22 +158,29 @@ class Game {
   Future<bool> battle(Monster monster) async {
     print('\n새로운 몬스터가 나타났습니다!');
     monster.showStatus();
+
     while (character!.health > 0 && monster.health > 0) {
       print('\n${character?.name}의 턴');
       character?.showStatus();
       monster.showStatus();
-      String? action = await GameIO.getPlayerAction();
+
+      // 캐릭터의 기술 목록 표시
+      character?.showSkills();
+      print('${character!.skills.length + 1}: 방어');
+      print('${character!.skills.length + 2}: 아이템 사용');
+
+      String? action = await GameIO.getPlayerAction(); // 파라미터 제거
       if (await checkGameEnd(action)) return false;
+
       await performAction(action, monster);
       if (monster.health <= 0) {
         print('${monster.name}을(를) 물리쳤습니다!');
         return true;
       }
+
       print('\n${monster.name}의 턴');
-      int initialHealth = character!.health;
       monster.attackCharacter(character!);
-      int damage = initialHealth - character!.health;
-      print('${monster.name}이(가) ${character!.name}에게 $damage의 데미지를 입혔습니다.');
+
       if (character!.health <= 0) {
         print('${character?.name}이(가) 쓰러졌습니다. 게임 오버!');
         return false;
@@ -168,46 +190,33 @@ class Game {
   }
 
   Future performAction(String? action, Monster monster) async {
-    switch (action) {
-      case '1':
-      case '2':
-        print('전투중입니다...');
-        await Future.delayed(Duration(seconds: 1));
-        if (action == '1') {
-          character?.attackMonster(monster);
-        } else {
-          character?.defend();
-        }
-        break;
-      case '3':
-        character?.useItem();
-        print('\n아이템 사용 후 행동을 선택하세요.');
-        // 아이템 사용 후 공격/방어만 선택 가능하도록 수정된 행동 선택
-        String? nextAction;
-        while (true) {
-          stdout.write('행동을 선택하세요 (1: 공격, 2: 방어): ');
-          nextAction = stdin.readLineSync()?.toLowerCase().trim();
+    int actionNum = int.tryParse(action ?? '') ?? 0;
+    if (actionNum <= 0 || actionNum > character!.skills.length + 2) {
+      print('잘못된 입력입니다.');
+      return;
+    }
 
-          if (nextAction == 'reset') {
-            return await checkGameEnd(nextAction);
-          }
-          if (['1', '2'].contains(nextAction)) {
-            break;
-          }
-          print('올바른 행동을 선택해주세요.');
+    print('전투중입니다...');
+    await Future.delayed(Duration(milliseconds: 500));
+
+    if (actionNum <= character!.skills.length) {
+      // 스킬 사용
+      character?.useSkill(monster, character!.skills[actionNum - 1]);
+    } else if (actionNum == character!.skills.length + 1) {
+      // 방어
+      character?.defend();
+    } else {
+      // 아이템 사용
+      character?.useItem();
+      print('\n아이템 사용 후 기술을 선택하세요.');
+      character?.showSkills();
+      String? nextAction = await GameIO.getPlayerAction();
+      if (nextAction != null) {
+        int skillIndex = int.tryParse(nextAction) ?? 0;
+        if (skillIndex > 0 && skillIndex <= character!.skills.length) {
+          character?.useSkill(monster, character!.skills[skillIndex - 1]);
         }
-        // 선택된 행동 수행
-        print('전투중입니다...');
-        await Future.delayed(Duration(seconds: 1));
-        if (nextAction == '1') {
-          character?.attackMonster(monster);
-        } else {
-          character?.defend();
-        }
-        break;
-      default:
-        print('잘못된 입력입니다. 다시 선택해주세요.');
-        await performAction(await GameIO.getPlayerAction(), monster);
+      }
     }
   }
 

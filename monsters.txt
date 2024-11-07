@@ -1,3 +1,3 @@
-Batman,30,20
-Spiderman,20,30
-Superman,30,10
+Batman,Dark,30,20,Flying,BatarangThrow:25:Flying,GrapplingHook:20:Flying,SmokeScreen:15:Dark
+Spiderman,Speed,20,30,WebShot:30:Speed,SpiderSense:25:Speed,WebSwing:20:Speed
+Superman,Strength,30,10,HeatVision:35:Strength,SuperPunch:30:Strength,FrostBreath:25:Ice
